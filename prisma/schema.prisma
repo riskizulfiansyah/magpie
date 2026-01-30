@@ -12,3 +12,75 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Order{
+  id Int @id @default(autoincrement())
+  user_id Int
+  user        User        @relation(fields: [user_id], references: [id])
+  total_price Float
+  items OrderItem[]
+  status String @default("pending")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id])
+}
+
+model OrderItem{
+  id Int @id @default(autoincrement())
+  order_id Int
+  order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product_id Int
+  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  quantity Int
+  price Float
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([order_id])
+  @@index([product_id])
+}
+
+model Product{
+  id Int @id @default(autoincrement())
+  name String
+  description String
+  price Float
+  unit String @default("Piece")
+  image String
+  discount Float @default(0)
+  availability Boolean @default(true)
+  brand String
+  category String
+  rating Float @default(0)
+  reviews ProductReview[]
+  order_items  OrderItem[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model ProductReview{
+  id Int @id @default(autoincrement())
+  user_id Int
+  user       User     @relation(fields: [user_id], references: [id])
+  product_id Int
+  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  rating Int
+  comment String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id])
+  @@index([product_id])
+  @@unique([user_id, product_id])
+}
+
+model User{
+  id Int @id @default(autoincrement())
+  name String
+  email String @unique
+  orders Order[]
+  reviews ProductReview[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
