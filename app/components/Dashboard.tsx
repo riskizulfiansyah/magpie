@@ -5,7 +5,7 @@ import { StatsCard } from "./StatsCard";
 import { OrdersStatusChart } from "./OrdersStatusChart";
 import { ProductCategoryChart } from "./ProductCategoryChart";
 import { BusinessInsightsChart } from "./BusinessInsightsChart";
-import { CategoryRevenueChart } from "./CategoryRevenueChart";
+
 import { RecentOrdersTable } from "./RecentOrdersTable";
 import { TopProductsTable } from "./TopProductsTable";
 
@@ -176,12 +176,7 @@ export function Dashboard() {
 
                 {/* Business Insights */}
                 <div className="mb-6">
-                    <BusinessInsightsChart data={businessInsightsData} yoyChange="+16%" />
-                </div>
-
-                {/* Category Revenue */}
-                <div className="mb-6">
-                    <CategoryRevenueChart data={categoryRevenueData} />
+                    <BusinessInsightsChart data={businessInsightsData} yoyChange="+16%" categoryData={categoryRevenueData} />
                 </div>
 
                 {/* Tables */}
