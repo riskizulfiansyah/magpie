@@ -30,8 +30,8 @@ model OrderItem{
   id Int @id @default(autoincrement())
   order_id Int
   order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  product_id Int
-  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  product_id Int?
+  product    Product?  @relation(fields: [product_id], references: [id], onDelete: Cascade)
   quantity Int
   price Float
   created_at DateTime @default(now())

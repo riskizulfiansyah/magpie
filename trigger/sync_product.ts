@@ -6,12 +6,12 @@ import { Prisma } from "@/app/generated/prisma/client";
 
 type TransactionClient = Prisma.TransactionClient;
 
-export async function fetchProductData(): Promise<ProductResponse[]> {
+async function fetchProductData(): Promise<ProductResponse[]> {
   const response = await fetch(process.env.PRODUCT_API_URL as string);
   return (await response.json()) as ProductResponse[];
 }
 
-export function extractUniqueUsers(productData: ProductResponse[]) {
+function extractUniqueUsers(productData: ProductResponse[]) {
   const allUsers = new Map<number, { id: number; name: string; email: string }>();
   productData.forEach((product) => {
     product.reviews?.forEach((review) => {
@@ -27,7 +27,7 @@ export function extractUniqueUsers(productData: ProductResponse[]) {
   return allUsers;
 }
 
-export async function groupProductsByExistence(productData: ProductResponse[]) {
+async function groupProductsByExistence(productData: ProductResponse[]) {
   const productIds = productData.map((p) => p.product_id);
   const existingProducts = await prisma.product.findMany({
     where: { id: { in: productIds } },
@@ -41,7 +41,7 @@ export async function groupProductsByExistence(productData: ProductResponse[]) {
   return { productsToCreate, productsToUpdate };
 }
 
-export function extractAllReviews(productData: ProductResponse[]) {
+function extractAllReviews(productData: ProductResponse[]) {
   const allReviews: Array<{
     user_id: number;
     product_id: number;
@@ -62,7 +62,7 @@ export function extractAllReviews(productData: ProductResponse[]) {
   return allReviews;
 }
 
-export async function saveUsers(tx: TransactionClient, users: Map<number, { id: number; name: string; email: string }>) {
+async function saveUsers(tx: TransactionClient, users: Map<number, { id: number; name: string; email: string }>) {
   if (users.size > 0) {
     await tx.user.createMany({
       data: Array.from(users.values()),
@@ -72,9 +72,8 @@ export async function saveUsers(tx: TransactionClient, users: Map<number, { id: 
   }
 }
 
-export async function saveNewProducts(tx: TransactionClient, productsToCreate: ProductResponse[]) {
-  const BATCH_SIZE = 50;
-  const createChunks = chunk(productsToCreate, BATCH_SIZE);
+async function saveNewProducts(tx: TransactionClient, productsToCreate: ProductResponse[]) {
+  const createChunks = chunk(productsToCreate, Number(process.env.BATCH_SIZE));
   for (const [index, batch] of createChunks.entries()) {
     await tx.product.createMany({
       data: batch.map((p) => {
@@ -91,9 +90,8 @@ export async function saveNewProducts(tx: TransactionClient, productsToCreate: P
   }
 }
 
-export async function updateExistingProducts(tx: TransactionClient, productsToUpdate: ProductResponse[]) {
-  const BATCH_SIZE = 50;
-  const updateChunks = chunk(productsToUpdate, BATCH_SIZE);
+async function updateExistingProducts(tx: TransactionClient, productsToUpdate: ProductResponse[]) {
+  const updateChunks = chunk(productsToUpdate, Number(process.env.BATCH_SIZE));
   for (const [index, batch] of updateChunks.entries()) {
     await Promise.all(
       batch.map((p) => {
@@ -112,7 +110,7 @@ export async function updateExistingProducts(tx: TransactionClient, productsToUp
   }
 }
 
-export async function saveReviews(tx: TransactionClient, allReviews: ReturnType<typeof extractAllReviews>) {
+async function saveReviews(tx: TransactionClient, allReviews: ReturnType<typeof extractAllReviews>) {
   if (allReviews.length > 0) {
     await Promise.all(
       allReviews.map((review) =>
@@ -144,6 +142,7 @@ export const syncProduct = schedules.task({
 
     logger.info("Starting scheduled sync", {
       timestamp: new Date().toISOString(),
+      payload
     });
 
     const productData = await fetchProductData();
