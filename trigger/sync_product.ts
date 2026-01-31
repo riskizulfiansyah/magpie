@@ -1,18 +1,13 @@
-import { chunk } from "@/lib/helper";
 import prisma from "@/lib/prisma";
 import { ProductResponse } from "@/lib/types";
 import { logger, schedules } from "@trigger.dev/sdk/v3";
-import { Prisma } from "@/app/generated/prisma/client";
-
-type TransactionClient = Prisma.TransactionClient;
-
-async function fetchProductData(): Promise<ProductResponse[]> {
-  const response = await fetch(process.env.PRODUCT_API_URL as string);
-  return (await response.json()) as ProductResponse[];
-}
+import { fetchProductsFromExternalApi } from "@/lib/services/external/productApiService";
+import * as productRepo from "@/lib/repositories/productRepository";
+import * as userRepo from "@/lib/repositories/userRepository";
+import * as reviewRepo from "@/lib/repositories/reviewRepository";
 
 function extractUniqueUsers(productData: ProductResponse[]) {
-  const allUsers = new Map<number, { id: number; name: string; email: string }>();
+  const allUsers = new Map<number, { id: number; name: string; email: string, created_at: Date }>();
   productData.forEach((product) => {
     product.reviews?.forEach((review) => {
       if (!allUsers.has(review.user_id)) {
@@ -20,25 +15,12 @@ function extractUniqueUsers(productData: ProductResponse[]) {
           id: review.user_id,
           name: `User ${review.user_id}`,
           email: `user${review.user_id}@example.com`,
+          created_at: new Date(),
         });
       }
     });
   });
   return allUsers;
-}
-
-async function groupProductsByExistence(productData: ProductResponse[]) {
-  const productIds = productData.map((p) => p.product_id);
-  const existingProducts = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-    select: { id: true },
-  });
-  const existingProductIds = new Set(existingProducts.map((p) => p.id));
-
-  const productsToCreate = productData.filter((p) => !existingProductIds.has(p.product_id));
-  const productsToUpdate = productData.filter((p) => existingProductIds.has(p.product_id));
-
-  return { productsToCreate, productsToUpdate };
 }
 
 function extractAllReviews(productData: ProductResponse[]) {
@@ -62,82 +44,11 @@ function extractAllReviews(productData: ProductResponse[]) {
   return allReviews;
 }
 
-async function saveUsers(tx: TransactionClient, users: Map<number, { id: number; name: string; email: string }>) {
-  if (users.size > 0) {
-    await tx.user.createMany({
-      data: Array.from(users.values()),
-      skipDuplicates: true,
-    });
-    logger.info(`Processed ${users.size} users (skipDuplicates)`);
-  }
-}
-
-async function saveNewProducts(tx: TransactionClient, productsToCreate: ProductResponse[]) {
-  const createChunks = chunk(productsToCreate, Number(process.env.BATCH_SIZE));
-  for (const [index, batch] of createChunks.entries()) {
-    await tx.product.createMany({
-      data: batch.map((p) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { product_id, reviews: _reviews, ...productFields } = p;
-        return {
-          id: product_id,
-          ...productFields,
-          created_at: new Date(),
-        };
-      }),
-    });
-    logger.info(`Created batch ${index + 1}/${createChunks.length} (${batch.length} products)`);
-  }
-}
-
-async function updateExistingProducts(tx: TransactionClient, productsToUpdate: ProductResponse[]) {
-  const updateChunks = chunk(productsToUpdate, Number(process.env.BATCH_SIZE));
-  for (const [index, batch] of updateChunks.entries()) {
-    await Promise.all(
-      batch.map((p) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { product_id, reviews: _reviews, ...productFields } = p;
-        return tx.product.update({
-          where: { id: product_id },
-          data: {
-            ...productFields,
-            updated_at: new Date(),
-          },
-        });
-      })
-    );
-    logger.info(`Updated batch ${index + 1}/${updateChunks.length} (${batch.length} products)`);
-  }
-}
-
-async function saveReviews(tx: TransactionClient, allReviews: ReturnType<typeof extractAllReviews>) {
-  if (allReviews.length > 0) {
-    await Promise.all(
-      allReviews.map((review) =>
-        tx.productReview.upsert({
-          where: {
-            user_id_product_id: {
-              user_id: review.user_id,
-              product_id: review.product_id,
-            },
-          },
-          update: {
-            rating: review.rating,
-            comment: review.comment,
-          },
-          create: review,
-        })
-      )
-    );
-    logger.info(`Upserted ${allReviews.length} reviews`);
-  }
-}
-
 export const syncProduct = schedules.task({
   id: "sync-product",
   cron: "0 * * * *",
   maxDuration: 300,
-  run: async (payload, { ctx }) => {
+  run: async (payload) => {
     const startTime = Date.now();
 
     logger.info("Starting scheduled sync", {
@@ -145,22 +56,39 @@ export const syncProduct = schedules.task({
       payload
     });
 
-    const productData = await fetchProductData();
+    // Fetch from external API
+    const productData = await fetchProductsFromExternalApi();
 
-    // Extract all unique users from reviews
+    // Extract unique users and reviews
     const allUsers = extractUniqueUsers(productData);
+    const allReviews = extractAllReviews(productData);
 
-    // Get existing products to determine create vs update
-    const { productsToCreate, productsToUpdate } = await groupProductsByExistence(productData);
+    // Group products by existence
+    const productIds = productData.map((p) => p.product_id);
+    const { existing: existingProductIds } = await productRepo.groupProductsByExistence(productIds);
 
-    // Execute bulk operations in transaction
+    const productsToCreate = productData.filter((p) => !existingProductIds.has(p.product_id));
+    const productsToUpdate = productData.filter((p) => existingProductIds.has(p.product_id));
+
+    // Execute bulk operations in two phases
+    // Phase 1: Users and Products (master data)
     await prisma.$transaction(async (tx) => {
-      await saveUsers(tx, allUsers);
-      await saveNewProducts(tx, productsToCreate);
-      await updateExistingProducts(tx, productsToUpdate);
+      await userRepo.createUsers(tx, Array.from(allUsers.values()));
+      await productRepo.createProducts(tx, productsToCreate);
+      await productRepo.updateProducts(tx, productsToUpdate);
+    });
 
-      const allReviews = extractAllReviews(productData);
-      await saveReviews(tx, allReviews);
+    logger.info("Product sync completed successfully", {
+      totalProducts: productData.length,
+      created: productsToCreate.length,
+      updated: productsToUpdate.length,
+      users: allUsers.size,
+    });
+
+    // Phase 2: Reviews (dependent data)
+    await prisma.$transaction(async (tx) => {
+      const reviewsToCreate = await reviewRepo.groupReviewsByExistence(tx, allReviews);
+      await reviewRepo.createReviews(tx, reviewsToCreate);
     });
 
     logger.info("Bulk sync completed", {
@@ -168,7 +96,7 @@ export const syncProduct = schedules.task({
       created: productsToCreate.length,
       updated: productsToUpdate.length,
       users: allUsers.size,
-      reviews: productData.reduce((sum: number, p) => sum + (p.reviews?.length || 0), 0),
+      reviews: allReviews.length,
     });
 
     const duration = Date.now() - startTime;
