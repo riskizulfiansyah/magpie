@@ -187,7 +187,7 @@ export function BusinessInsightsChart({
                                 </svg>
                             </button>
                         </div>
-                        <CategoryList categoryData={categoryData} maxRevenue={maxRevenue} />
+                        <CategoryList categoryData={categoryData.slice(0, 5)} maxRevenue={maxRevenue} />
                     </div>
                 </div>
             </CardContent>

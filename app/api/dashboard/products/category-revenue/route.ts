@@ -53,11 +53,13 @@ export async function GET() {
 
         const colors = ["#fca311", "#e5e5e5", "#6b7280", "#3b82f6", "#10b981"];
 
-        const data = Object.entries(categoryRevenue).map(([name, revenue], index) => ({
-            name,
-            revenue,
-            color: colors[index % colors.length],
-        }));
+        const data = Object.entries(categoryRevenue)
+            .map(([name, revenue], index) => ({
+                name,
+                revenue,
+                color: colors[index % colors.length],
+            }))
+            .sort((a, b) => b.revenue - a.revenue);
 
         return NextResponse.json(data);
     } catch (error) {
