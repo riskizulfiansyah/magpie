@@ -17,22 +17,12 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-
-interface Order {
-    id: string;
-    customer: string;
-    amount: number;
-    status: "Shipped" | "Processing" | "Delivered" | "Cancelled";
-}
-
-interface DetailedOrder extends Order {
-    email: string;
-    date: string;
-    items: number;
-}
+import { RecentOrder } from "@/lib/dashboard/dashboardTypes";
+import { useDashboardData } from "../hooks/useDashboardData";
+import { formatUserId } from "@/lib/utils/formatters";
 
 interface RecentOrdersTableProps {
-    orders: Order[];
+    orders: RecentOrder[];
 }
 
 const statusStyles = {
@@ -42,24 +32,10 @@ const statusStyles = {
     Cancelled: "bg-destructive/20 text-destructive border-destructive/30",
 };
 
-// Extended mock data for the dialog view
-const allOrders: DetailedOrder[] = [
-    { id: "1024", customer: "Alex M.", email: "alex.m@email.com", amount: 120.0, status: "Shipped", date: "2024-11-24", items: 3 },
-    { id: "1023", customer: "Sarah K.", email: "sarah.k@email.com", amount: 85.5, status: "Processing", date: "2024-11-24", items: 2 },
-    { id: "1022", customer: "Michael B.", email: "michael.b@email.com", amount: 210.0, status: "Delivered", date: "2024-11-23", items: 5 },
-    { id: "1021", customer: "Emma W.", email: "emma.w@email.com", amount: 45.0, status: "Cancelled", date: "2024-11-23", items: 1 },
-    { id: "1020", customer: "James L.", email: "james.l@email.com", amount: 315.0, status: "Shipped", date: "2024-11-22", items: 4 },
-    { id: "1019", customer: "Olivia P.", email: "olivia.p@email.com", amount: 89.99, status: "Delivered", date: "2024-11-22", items: 2 },
-    { id: "1018", customer: "William D.", email: "william.d@email.com", amount: 156.0, status: "Processing", date: "2024-11-21", items: 3 },
-    { id: "1017", customer: "Sophia R.", email: "sophia.r@email.com", amount: 78.5, status: "Shipped", date: "2024-11-21", items: 2 },
-    { id: "1016", customer: "Benjamin F.", email: "benjamin.f@email.com", amount: 430.0, status: "Delivered", date: "2024-11-20", items: 6 },
-    { id: "1015", customer: "Isabella G.", email: "isabella.g@email.com", amount: 62.0, status: "Shipped", date: "2024-11-20", items: 1 },
-    { id: "1014", customer: "Lucas H.", email: "lucas.h@email.com", amount: 198.0, status: "Processing", date: "2024-11-19", items: 4 },
-    { id: "1013", customer: "Mia J.", email: "mia.j@email.com", amount: 55.0, status: "Cancelled", date: "2024-11-19", items: 1 },
-];
-
 export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const { data } = useDashboardData();
+    const allOrders = data?.allOrders || [];
 
     return (
         <>
@@ -133,6 +109,9 @@ export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
                                         Order ID
                                     </TableHead>
                                     <TableHead className="text-muted-foreground font-medium">
+                                        User ID
+                                    </TableHead>
+                                    <TableHead className="text-muted-foreground font-medium">
                                         Customer
                                     </TableHead>
                                     <TableHead className="text-muted-foreground font-medium">
@@ -157,6 +136,9 @@ export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
                                     <TableRow key={order.id} className="border-border">
                                         <TableCell className="text-foreground font-medium">
                                             #{order.id}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground font-mono text-xs">
+                                            {formatUserId(order.userId)}
                                         </TableCell>
                                         <TableCell className="text-foreground">
                                             {order.customer}

@@ -17,22 +17,11 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-
-interface Product {
-    name: string;
-    category: string;
-    price: number;
-    stock: number;
-}
-
-interface DetailedProduct extends Product {
-    sku: string;
-    rating: number;
-    sales: number;
-}
+import { TopProduct } from "@/lib/dashboard/dashboardTypes";
+import { useDashboardData } from "../hooks/useDashboardData";
 
 interface TopProductsTableProps {
-    products: Product[];
+    products: TopProduct[];
 }
 
 const getStockStatus = (stock: number) => {
@@ -41,24 +30,10 @@ const getStockStatus = (stock: number) => {
     return { label: "Critical", style: "bg-destructive/20 text-destructive border-destructive/30" };
 };
 
-// Extended mock data for the dialog view
-const allProducts: DetailedProduct[] = [
-    { sku: "WBP-001", name: "Wireless Buds Pro", category: "Electronics", price: 129.99, stock: 45, rating: 4.8, sales: 1250 },
-    { sku: "CLJ-002", name: "Classic Leather Jacket", category: "Fashion", price: 249.50, stock: 12, rating: 4.6, sales: 340 },
-    { sku: "SHH-003", name: "Smart Home Hub", category: "Home", price: 89.00, stock: 108, rating: 4.5, sales: 890 },
-    { sku: "RSN-004", name: "Running Sneakers", category: "Sports", price: 110.00, stock: 32, rating: 4.7, sales: 520 },
-    { sku: "VCS-005", name: "Vitamin C Serum", category: "Beauty", price: 35.00, stock: 215, rating: 4.9, sales: 2100 },
-    { sku: "WCH-006", name: "Wireless Charger Stand", category: "Electronics", price: 45.00, stock: 78, rating: 4.4, sales: 680 },
-    { sku: "YGM-007", name: "Yoga Mat Premium", category: "Sports", price: 55.00, stock: 156, rating: 4.6, sales: 420 },
-    { sku: "SLK-008", name: "Silk Pillowcase Set", category: "Home", price: 65.00, stock: 89, rating: 4.7, sales: 310 },
-    { sku: "DRS-009", name: "Designer Sunglasses", category: "Fashion", price: 189.00, stock: 18, rating: 4.5, sales: 180 },
-    { sku: "FCS-010", name: "Face Cream SPF 50", category: "Beauty", price: 42.00, stock: 165, rating: 4.8, sales: 950 },
-    { sku: "BTH-011", name: "Bluetooth Speaker", category: "Electronics", price: 79.99, stock: 52, rating: 4.6, sales: 720 },
-    { sku: "DMB-012", name: "Dumbbell Set", category: "Sports", price: 125.00, stock: 25, rating: 4.4, sales: 280 },
-];
-
 export function TopProductsTable({ products }: TopProductsTableProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const { data } = useDashboardData();
+    const allProducts = data?.allProducts || [];
 
     return (
         <>
