@@ -8,6 +8,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { formatCurrency } from "@/lib/utils/formatters";
 import {
     ComposedChart,
     Area,
@@ -57,6 +58,7 @@ const RevenueChart = ({ data, showYAxis = false }: { data: InsightData[]; showYA
                 />
                 <YAxis hide={!showYAxis} tick={{ fill: "#e5e5e5", fontSize: 12 }} axisLine={false} tickLine={false} />
                 <Tooltip
+                    formatter={(value: number | undefined) => [formatCurrency(value || 0), undefined]}
                     contentStyle={{
                         backgroundColor: "#14213d",
                         border: "1px solid #2a3a5a",
@@ -68,6 +70,7 @@ const RevenueChart = ({ data, showYAxis = false }: { data: InsightData[]; showYA
                 <Area
                     type="monotone"
                     dataKey="thisYear"
+                    name="This Year"
                     stroke="#fca311"
                     strokeWidth={2}
                     fill="url(#areaGradient)"
@@ -76,10 +79,9 @@ const RevenueChart = ({ data, showYAxis = false }: { data: InsightData[]; showYA
                 <Line
                     type="monotone"
                     dataKey="lastYear"
+                    name="Last Year"
                     stroke="#e5e5e5"
-                    strokeWidth={1}
-                    strokeDasharray="5 5"
-                    dot={false}
+                    // ... (skip lines 74-84)
                     activeDot={false}
                 />
             </ComposedChart>
@@ -105,7 +107,7 @@ const CategoryList = ({ categoryData, maxRevenue }: { categoryData: CategoryReve
                         />
                     </div>
                     <span className="w-20 text-right text-sm font-medium text-foreground">
-                        ${new Intl.NumberFormat("en-US").format(item.revenue)}
+                        {formatCurrency(item.revenue)}
                     </span>
                 </div>
             ))}
