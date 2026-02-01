@@ -4,9 +4,34 @@ import { formatUserId } from "@/lib/utils/formatters";
 
 export async function GET() {
     try {
-        const orders = await prisma.order.findMany({
-            orderBy: { created_at: "desc" },
-            take: 100, // Limit for now
+        // Step 1: Get IDs sorted by custom status priority and created_at
+        const sortedIdsResults = await prisma.$queryRaw<{ id: number }[]>`
+            SELECT id 
+            FROM "Order" 
+            ORDER BY 
+              CASE LOWER(status)
+                WHEN 'pending' THEN 1
+                WHEN 'processing' THEN 2
+                WHEN 'shipped' THEN 3
+                WHEN 'delivered' THEN 4
+                WHEN 'completed' THEN 5
+                ELSE 6
+              END ASC,
+              created_at DESC
+            LIMIT 100
+        `;
+
+        const sortedIds = sortedIdsResults.map(r => r.id);
+
+        if (sortedIds.length === 0) {
+            return NextResponse.json([]);
+        }
+
+        // Step 2: Fetch full data for these IDs
+        const ordersUnsorted = await prisma.order.findMany({
+            where: {
+                id: { in: sortedIds }
+            },
             include: {
                 user: {
                     select: {
@@ -15,9 +40,13 @@ export async function GET() {
                         email: true
                     }
                 },
-                items: true // to count items
+                items: true
             }
         });
+
+        // Step 3: Re-sort in JS to match the ID order from Step 1
+        const idMap = new Map(ordersUnsorted.map(o => [o.id, o]));
+        const orders = sortedIds.map(id => idMap.get(id)).filter(o => o !== undefined);
 
         const detailedOrders = orders.map(order => ({
             id: order.id.toString(),
