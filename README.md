@@ -205,3 +205,32 @@ bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+---
+
+## Deployment
+
+### Deploy to Vercel
+
+1.  Push your code to a Git repository (GitHub, GitLab, Bitbucket).
+2.  Import your project into Vercel.
+3.  Add the following **Environment Variables** in the Vercel project settings:
+    *   `DATABASE_URL`: Connection string for your database (e.g., PostgreSQL).
+    *   `PRODUCT_API_URL`: URL for the external Product API.
+    *   `ORDER_API_URL`: URL for the external Order API.
+    *   `BATCH_SIZE`: Batch size for synchronization tasks (e.g., `100`).
+4.  Deploy.
+
+### Deploy to Trigger.dev
+
+1.  Create a project in the [Trigger.dev Dashboard](https://cloud.trigger.dev).
+2.  Follow the instructions to connect your project.
+3.  Add the following **Environment Variables** in the Trigger.dev project settings (Environment -> Variables):
+    *   `DATABASE_URL`
+    *   `PRODUCT_API_URL`
+    *   `ORDER_API_URL`
+    *   `BATCH_SIZE`
+4.  Run the deploy command:
+    ```bash
+    npx trigger.dev@latest deploy
+    ```
